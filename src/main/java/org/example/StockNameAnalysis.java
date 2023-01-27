@@ -15,58 +15,59 @@ public class StockNameAnalysis {
     /* 질문 예시 */
     static String[] questions = {
             " ㅁ ㅁ ㅁ ",
-            " SK증권 ",
-            " SK 증권 ",
+            " sk증권 ",
+            " sk 증권 ",
             " ㅁㅁㅁ SK 증권 ",
             " 시간외단일가 ",
-            " SK 증권 시간외 단일가 ",
-            " sk 증권 시간외 매매 ",
+            " sk  증권 시간외 단일가 ",
+            " sk증권 시간외 매매 ",
             " sk 증권 단일가 거래 ",
-            " SK 증권 주가 알려줘 ",
+            " sk  증권 주가 알려줘 ",
             " 주가 알려줘 ",
-            " SK 증권 얼마면 되니 ",
-            " 야 SK 증권 알려줘 ",
-            " as SK증권 ㅋㅌ ",
-            " SK증권 주소 ",
-            " SK증권 OTP ",
-            " SK증권 계좌 ",
-            " SK증권 카드 ",
-            " SK증권 블라블라 ",
-            " SK증권 룰루랄라 "
+            " sk  증권 얼마면 되니 ",
+            " 야 sk  증권 알려줘 ",
+            " as sk 증권 ㅋㅌ ",
+            " sk증권 주소 ",
+            " sk 증권 OTP ",
+            " sk증권 계좌 ",
+            " sk 증권 카드 ",
+            " ㅁㅁㅁ sk증권 ㅁㅁㅁ ",
+            " SK증권 좋아",
+            " 야호 gs 리테일 야호 ",
     };
 
     /* 종목명 DB (단순 리스트로 대체) */
-    List<String> stocks = new ArrayList<String>(Arrays.asList("sk", "sk증권", "sk증권우"));
+    List<String> stocks = new ArrayList<String>(Arrays.asList("sk", "sk증권", "sk증권우", "gs리테일"));
 
     public static void main(String args[]) {
 
         StockNameAnalysis sna = new StockNameAnalysis();
-        String foundedStockName = "";
+
+        String qStr = ""; /* 고객 질문 */
+        String foundedStockName = ""; /* 고객 질문에서 발견된 종목명 */
 
         /* (전처리) 종목명 데이터 수집 및 역순 정렬 */
         sna.preProcess();
 
         for (int idx = 0; idx < questions.length; idx++) {
-            System.out.println("[" + (idx + 1) + "] 질문 전처리(대문자변환) 전 [" + questions[idx] + "]");
+            qStr = questions[idx];
 
-            /* (전처리) 질문 영문자 대문자로 변경 */
-            questions[idx] = questions[idx].toUpperCase();
-            System.out.println("[" + (idx + 1) + "] 질문 전처리(대문자변환) 후[" + questions[idx] + "]");
+            System.out.println("[" + (idx + 1) + "] 질문 [" + qStr + "]");
 
             foundedStockName = ""; /* clear */
-            foundedStockName = sna.step0(questions[idx]);
-            if (!"".equals(foundedStockName)) {                     /* step0) 종목명을 포함하는 질문인가? */
+            foundedStockName = sna.step0(qStr); /* step0) 종목명을 포함하는 질문인가? */
+            if (!"".equals(foundedStockName)) {
 
-                if (sna.step1(questions[idx], foundedStockName)) {          /* step1) 종목명만 입력한 질문인가? */
+                if (sna.step1(qStr, foundedStockName)) {          /* step1) 종목명만 입력한 질문인가? */
                     System.out.println(">>> 결과 [종목 현재가 안내 (종목명만 입력)]\n");
 
-                } else if (sna.step2(questions[idx])) {    /* step2) 시간외, 단일가 키워드 포함한 질문인가? */
+                } else if (sna.step2(qStr)) {    /* step2) 시간외, 단일가 키워드 포함한 질문인가? */
                     System.out.println(">>> 결과 [종목 시간외 단일가 안내]\n");
 
-                } else if (sna.step3(questions[idx])) {    /* step3) 가격을 묻는 질문인가? */
+                } else if (sna.step3(qStr)) {    /* step3) 가격을 묻는 질문인가? */
                     System.out.println(">>> 결과 [종목 현재가 안내 (종목명 + 가격질의)]\n");
 
-                } else if (sna.step4(questions[idx], foundedStockName)) {    /* step4) 형태소분석결과 종목명 이외에 명사가 있는가? */
+                } else if (sna.step4(qStr, foundedStockName)) {    /* step4) 형태소분석결과 종목명 이외에 명사가 있는가? */
                     System.out.println(">>> 결과 [네이버 챗봇으로 전송 (주가 문의가 아닌것으로 판단)]\n");
 
                 } else {
@@ -105,6 +106,7 @@ public class StockNameAnalysis {
         String foundedStockName = "";
         String tmpStr = q;
         tmpStr = tmpStr.replaceAll(" ", ""); // 공백 제거
+        tmpStr = tmpStr.toUpperCase(); // 종목명은 대문자이므로, 고객이 입력한 질문의 영문을 대문자로 변환
 
         for (int i = 0; i < stocks.size(); i++) {
             foundedStockName = (tmpStr.indexOf(stocks.get(i)) > -1) ? stocks.get(i) : "";
@@ -181,23 +183,37 @@ public class StockNameAnalysis {
     public boolean step4(String q, String foundedStockName) {
 
         boolean result = false;
-        String tmpStr = q;
-        tmpStr = tmpStr.replaceAll(" ", ""); // 공백 제거
-        tmpStr = tmpStr.replaceAll(foundedStockName, ""); // 종목명 제거
 
-        /* 질문에서 종목명을 제거한 문자열 -> tmpStr 변수에 저장된 내용을 대상으로 형태소 분석 수행 */
+        String tmpStr = q;
+
+        int stockNameStartIndex = -1;
+        int stocknameLength = foundedStockName.length();
+
+        /* 공백 제거 */
+        tmpStr = tmpStr.replaceAll(" ", "");
+
+        /*
+        공백만 제거한 문장에서 종목명 제거
+        형태소 분석에서 대문자 영문은 명사로 인식 하므로
+        고객이 입력한 소문자를 대문자로 변환하여 명사로 인식하는 일이 없도록 하기 위해
+        고객질문에 toUpperCase()를 반영하지 않고 아래와같이 종목명을 제거함
+        */
+        stockNameStartIndex = tmpStr.toUpperCase().indexOf(foundedStockName);
+        tmpStr = tmpStr.substring(0, stockNameStartIndex)
+                + " "
+                + tmpStr.substring(stockNameStartIndex + stocknameLength);
+
+        System.out.println(tmpStr);
+
+        /* 질문에서 종목명을 제거한 문자열로 형태소분석 수행 */
 
         // Normalize (정규화)
         CharSequence normalized = OpenKoreanTextProcessorJava.normalize(tmpStr);
-
         // Tokenize (토큰화)
         Seq<KoreanTokenizer.KoreanToken> tokens = OpenKoreanTextProcessorJava.tokenize(normalized);
-
         // Phrase extraction (형태소 추출)
         List<KoreanPhraseExtractor.KoreanPhrase> phrases =
                 OpenKoreanTextProcessorJava.extractPhrases(tokens, true, true);
-
-        System.out.println(">>> Step 4 ) 형태소 분석 [" + phrases + "]");
 
         // phrases 리스트에서 Noun (명사)가 있는지 확인
         for (int idx = 0; idx < phrases.size(); idx++) {
